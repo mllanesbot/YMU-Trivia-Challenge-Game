@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>YMU Trivia Challenge</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;900&display=swap');
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    font-family:'Montserrat',sans-serif;
+    background:#000;
+    color:#fff;
+    min-height:100vh;
+    display:flex; align-items:center; justify-content:center;
+    overflow:hidden;
+  }
+  #game-wrap { width:100%; max-width:680px; padding:20px; position:relative; }
+
+  .screen { display:none; flex-direction:column; align-items:center; text-align:center; }
+  .screen.active { display:flex; }
+
+  .logo-area { margin-bottom:18px; }
+  .logo-area img { height:64px; object-fit:contain; }
+  .logo-fallback {
+    font-size:22px; font-weight:900; letter-spacing:2px;
+    color:#3D4EE8;
+  }
+
+  h1 { font-size:36px; font-weight:900; line-height:1.1; margin-bottom:10px; }
+  h1 span { color:#3D4EE8; }
+  .subtitle { font-size:15px; color:#888; margin-bottom:30px; max-width:420px; }
+
+  .btn {
+    background:#3D4EE8; color:#fff; border:none; border-radius:50px;
+    padding:14px 40px; font-size:16px; font-weight:700; cursor:pointer; letter-spacing:1px;
+    transition:transform .15s, box-shadow .15s;
+    box-shadow:0 4px 24px rgba(61,78,232,.45);
+    font-family:'Montserrat',sans-serif;
+  }
+  .btn:hover { transform:translateY(-2px); box-shadow:0 8px 32px rgba(61,78,232,.6); }
+  .btn:active { transform:scale(.97); }
+
+  .instruments-row { display:flex; gap:14px; margin:24px 0; flex-wrap:wrap; justify-content:center; }
+  .inst-icon {
+    width:60px; height:60px; border-radius:50%;
+    background:#111; border:2px solid #222;
+    display:flex; align-items:center; justify-content:center;
+    font-size:28px; transition:all .4s;
+  }
+  .inst-icon.unlocked {
+    background:#3D4EE8; border-color:#3D4EE8;
+    box-shadow:0 0 20px rgba(61,78,232,.55);
+    animation:pop .4s ease;
+  }
+  @keyframes pop { 0%{transform:scale(.7)} 60%{transform:scale(1.2)} 100%{transform:scale(1)} }
+
+  .lives-row { display:flex; gap:8px; margin-bottom:16px; }
+  .heart { font-size:22px; transition:all .3s; }
+  .heart.lost { filter:grayscale(1); opacity:.3; transform:scale(.8); }
+
+  .progress-wrap { width:100%; background:#111; border-radius:10px; height:8px; margin-bottom:20px; overflow:hidden; }
+  .progress-bar { height:100%; background:#3D4EE8; border-radius:10px; transition:width .5s ease; }
+
+  .q-card {
+    background:#0d0d0d; border:1px solid #1e1e1e;
+    border-radius:20px; padding:28px 24px; width:100%; margin-bottom:20px;
+  }
+  .q-num { font-size:12px; color:#3D4EE8; font-weight:700; letter-spacing:2px; margin-bottom:10px; }
+  .q-text { font-size:19px; font-weight:700; line-height:1.4; }
+
+  .options { display:grid; grid-template-columns:1fr 1fr; gap:12px; width:100%; margin-bottom:20px; }
+  .opt-btn {
+    background:#0d0d0d; border:2px solid #1e1e1e;
+    color:#fff; border-radius:14px; padding:14px 12px;
+    font-size:14px; font-weight:600; cursor:pointer;
+    transition:all .2s; text-align:left; font-family:'Montserrat',sans-serif;
+  }
+  .opt-btn:hover:not(:disabled) { border-color:#3D4EE8; background:#0a0a1a; }
+  .opt-btn.correct { background:#0a0e2a; border-color:#3D4EE8; color:#7b8fff; }
+  .opt-btn.wrong { background:#1a0000; border-color:#ff1744; color:#ff1744; }
+  .opt-btn:disabled { cursor:default; }
+
+  .feedback {
+    font-size:15px; font-weight:700; min-height:28px;
+    padding:6px 18px; border-radius:50px; margin-bottom:14px;
+  }
+  .feedback.correct { background:rgba(61,78,232,.15); color:#7b8fff; }
+  .feedback.wrong { background:rgba(255,23,68,.12); color:#ff1744; }
+
+  .unlock-banner {
+    background:#07091a; border:1px solid #3D4EE8; border-radius:16px;
+    padding:16px 24px; margin-bottom:16px; width:100%;
+    display:none; align-items:center; gap:14px;
+  }
+  .unlock-banner.show { display:flex; animation:slideIn .4s ease; }
+  @keyframes slideIn { from{opacity:0;transform:translateY(-10px)} to{opacity:1;transform:translateY(0)} }
+  .unlock-banner .big-icon { font-size:40px; }
+  .unlock-banner .ub-text { text-align:left; }
+  .unlock-banner .ub-text strong { color:#3D4EE8; font-size:13px; letter-spacing:1px; }
+  .unlock-banner .ub-text p { font-size:15px; font-weight:700; }
+
+  .score-badge {
+    background:#0d0d0d; border:1px solid #1e1e1e;
+    border-radius:50px; padding:6px 18px;
+    font-size:13px; font-weight:700; color:#3D4EE8; margin-bottom:16px;
+  }
+
+  .end-icon { font-size:72px; margin:10px 0; }
+  .final-score { font-size:52px; font-weight:900; color:#3D4EE8; }
+  .final-label { font-size:14px; color:#888; margin-bottom:6px; }
+  .final-msg { font-size:16px; color:#ccc; margin:16px 0 24px; max-width:400px; }
+  .cta-box {
+    background:#07091a; border:1px solid #3D4EE8; border-radius:20px;
+    padding:20px 28px; margin-bottom:24px; width:100%;
+  }
+  .cta-box p { font-size:14px; color:#aaa; margin-bottom:12px; }
+  .cta-box a {
+    display:inline-block; background:#3D4EE8;
+    color:#fff; text-decoration:none; padding:10px 28px;
+    border-radius:50px; font-weight:700; font-size:14px;
+    transition:transform .15s, box-shadow .15s;
+    box-shadow:0 4px 20px rgba(61,78,232,.4);
+  }
+  .cta-box a:hover { transform:translateY(-2px); box-shadow:0 8px 28px rgba(61,78,232,.55); }
+
+  .band-complete { display:flex; gap:10px; justify-content:center; flex-wrap:wrap; margin:18px 0; }
+  .band-complete .inst-icon { width:52px; height:52px; font-size:24px; }
+
+  .stars { display:flex; gap:6px; margin:8px 0 16px; }
+  .star { font-size:28px; filter:grayscale(1); opacity:.3; transition:all .4s; }
+  .star.lit { filter:none; opacity:1; animation:pop .4s ease; }
+
+  .confetti-piece {
+    position:fixed; border-radius:2px;
+    animation:confettiFall linear forwards;
+    pointer-events:none;
+  }
+  @keyframes confettiFall {
+    0%{transform:translateY(-20px) rotate(0deg);opacity:1}
+    100%{transform:translateY(100vh) rotate(720deg);opacity:0}
+  }
+
+  /* divider line */
+  .divider { width:60px; height:3px; background:#3D4EE8; border-radius:2px; margin:0 auto 20px; }
+</style>
+</head>
+<body>
+<div id="game-wrap">
+
+  <!-- START -->
+  <div class="screen active" id="screen-start">
+    <div class="logo-area">
+      <img src="https://images.squarespace-cdn.com/content/v1/5d60224cfedb07000146fb2e/c72e660a-6b83-43cb-af59-591baf0525d3/YMU%2BBrand%2BIdentity%2B2024-23%2BWhite.png?format=1500w"
+           alt="YMU Logo"
+           onerror="this.style.display='none';document.getElementById('logo-fb').style.display='block'">
+      <div id="logo-fb" class="logo-fallback" style="display:none">YOUNG MUSICIANS UNITE</div>
+    </div>
+    <div class="divider"></div>
+    <h1>YMU <span>Trivia</span><br>Challenge</h1>
+    <p class="subtitle">How well do you know Young Musicians Unite? Answer correctly to unlock the full band! 🎶</p>
+    <div class="instruments-row" id="start-instruments"></div>
+    <button class="btn" onclick="startGame()">🎵 Start Playing</button>
+  </div>
+
+  <!-- GAME -->
+  <div class="screen" id="screen-game">
+    <div class="logo-area">
+      <img src="https://images.squarespace-cdn.com/content/v1/5d60224cfedb07000146fb2e/c72e660a-6b83-43cb-af59-591baf0525d3/YMU%2BBrand%2BIdentity%2B2024-23%2BWhite.png?format=1500w"
+           alt="YMU" style="height:38px;object-fit:contain;"
+           onerror="this.style.display='none'">
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;width:100%;margin-bottom:10px;">
+      <div class="lives-row" id="lives-row"></div>
+      <div class="score-badge">Score: <span id="score-display">0</span></div>
+    </div>
+    <div class="progress-wrap"><div class="progress-bar" id="progress-bar" style="width:0%"></div></div>
+    <div class="instruments-row" id="game-instruments"></div>
+    <div class="unlock-banner" id="unlock-banner">
+      <div class="big-icon" id="unlock-icon"></div>
+      <div class="ub-text"><strong>🎉 UNLOCKED!</strong><p id="unlock-name"></p></div>
+    </div>
+    <div class="q-card">
+      <div class="q-num" id="q-num">QUESTION 1 OF 12</div>
+      <div class="q-text" id="q-text"></div>
+    </div>
+    <div class="options" id="options"></div>
+    <div class="feedback" id="feedback"></div>
+    <button class="btn" id="next-btn" style="display:none" onclick="nextQuestion()">Next Question →</button>
+  </div>
+
+  <!-- END -->
+  <div class="screen" id="screen-end">
+    <div class="logo-area">
+      <img src="https://images.squarespace-cdn.com/content/v1/5d60224cfedb07000146fb2e/c72e660a-6b83-43cb-af59-591baf0525d3/YMU%2BBrand%2BIdentity%2B2024-23%2BWhite.png?format=1500w"
+           alt="YMU Logo" style="height:55px;object-fit:contain;"
+           onerror="this.style.display='none'">
+    </div>
+    <div class="divider"></div>
+    <div class="end-icon" id="end-icon">🎶</div>
+    <div class="final-label">YOUR SCORE</div>
+    <div class="final-score" id="final-score">0</div>
+    <div class="stars" id="stars-row"></div>
+    <p class="final-msg" id="final-msg"></p>
+    <div class="band-complete" id="end-instruments"></div>
+    <div class="cta-box">
+      <p>Help YMU bring free music education to over <strong style="color:#fff">12,000 students</strong> in Miami's inner cities.</p>
+      <a href="https://ymu.org/?campaign=689103" target="_blank">❤️ Donate to YMU</a>
+    </div>
+    <button class="btn" onclick="startGame()">🔄 Play Again</button>
+    <a href="https://ymu.org" target="_blank" style="margin-top:14px;color:#3D4EE8;font-size:13px;font-weight:600;text-decoration:none;">Learn more at ymu.org →</a>
+  </div>
+
+</div>
+<script>
+const INSTRUMENTS = [
+  {icon:'🥁',name:'Drums'},
+  {icon:'🎸',name:'Guitar'},
+  {icon:'🎹',name:'Piano'},
+  {icon:'🎷',name:'Saxophone'},
+  {icon:'🎺',name:'Trumpet'},
+  {icon:'🎻',name:'Violin'},
+];
+
+const ALL_QUESTIONS = [
+  {q:"What city is Young Musicians Unite (YMU) based in?",opts:["Orlando","Miami","Tampa","Jacksonville"],ans:1,inst:0},
+  {q:"How many students does YMU serve every year?",opts:["2,000","5,000","12,000","20,000"],ans:2,inst:0},
+  {q:"What grade levels does YMU serve?",opts:["K–4","3–8","5–12","9–12"],ans:2,inst:1},
+  {q:"YMU believes every child deserves access to music education regardless of what?",opts:["Age","Location","Socio-economic background","Grade level"],ans:2,inst:1},
+  {q:"How many performances do YMU's performing ensembles do per concert season?",opts:["Over 50","Over 100","Over 185","Over 300"],ans:2,inst:2},
+  {q:"Which of these is a performing ensemble offered by YMU?",opts:["Orchestra","Marching Band","Rock Ensemble","Choir"],ans:2,inst:2},
+  {q:"What type of organization is Young Musicians Unite?",opts:["For-profit company","Government agency","501(c)3 nonprofit","School district"],ans:2,inst:3},
+  {q:"What is YMU's after-school studio program called?",opts:["YMU Academy","YMU Studio","YMU Stage","YMU Lab"],ans:1,inst:3},
+  {q:"Which program connects YMU with arts access across Miami?",opts:["Arts Miami","Arts Access Miami","Miami Arts United","Creative Miami"],ans:1,inst:4},
+  {q:"What street is YMU located on in Miami?",opts:["100 NW 1st St","1584 NW 29th Street","305 Biscayne Blvd","2100 SW 8th Ave"],ans:1,inst:4},
+  {q:"YMU collaborates with schools to provide what kind of music education?",opts:["Paid lessons","Online-only courses","Free music education","Weekend workshops"],ans:2,inst:5},
+  {q:"YMU's Jazz program is called:",opts:["Jazz Ensemble","Jazz Collective","Jazz Club","Jazz Academy"],ans:1,inst:5},
+];
+
+let questions,qIndex,score,lives,unlocked;
+
+function shuffle(a){return[...a].sort(()=>Math.random()-.5);}
+
+function startGame(){
+  questions=shuffle(ALL_QUESTIONS);
+  qIndex=0;score=0;lives=3;unlocked=new Array(INSTRUMENTS.length).fill(false);
+  showScreen('screen-game');
+  renderLives();renderInstruments('game-instruments');
+  document.getElementById('score-display').textContent=0;
+  document.getElementById('unlock-banner').classList.remove('show');
+  document.getElementById('feedback').textContent='';
+  document.getElementById('feedback').className='feedback';
+  loadQuestion();
+}
+
+// render locked instruments on start screen
+(function initStart(){
+  const c=document.getElementById('start-instruments');
+  INSTRUMENTS.forEach(inst=>{
+    const d=document.createElement('div');
+    d.className='inst-icon';d.textContent='🔒';c.appendChild(d);
+  });
+})();
+
+function showScreen(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function renderLives(){
+  const row=document.getElementById('lives-row');row.innerHTML='';
+  for(let i=0;i<3;i++){
+    const h=document.createElement('span');
+    h.className='heart'+(i>=lives?' lost':'');h.textContent='❤️';row.appendChild(h);
+  }
+}
+
+function renderInstruments(cid){
+  const c=document.getElementById(cid);c.innerHTML='';
+  INSTRUMENTS.forEach((inst,i)=>{
+    const d=document.createElement('div');
+    d.className='inst-icon'+(unlocked[i]?' unlocked':'');
+    d.textContent=unlocked[i]?inst.icon:'🔒';
+    d.id='inst-'+cid+'-'+i;c.appendChild(d);
+  });
+}
+
+function loadQuestion(){
+  if(qIndex>=questions.length){endGame();return;}
+  const q=questions[qIndex];
+  document.getElementById('q-num').textContent=`QUESTION ${qIndex+1} OF ${questions.length}`;
+  document.getElementById('q-text').textContent=q.q;
+  document.getElementById('progress-bar').style.width=((qIndex/questions.length)*100)+'%';
+  document.getElementById('feedback').textContent='';
+  document.getElementById('feedback').className='feedback';
+  document.getElementById('next-btn').style.display='none';
+  document.getElementById('unlock-banner').classList.remove('show');
+  const opts=document.getElementById('options');opts.innerHTML='';
+  q.opts.forEach((opt,i)=>{
+    const b=document.createElement('button');
+    b.className='opt-btn';b.textContent=opt;
+    b.onclick=()=>answer(i,q.ans,q.inst);
+    opts.appendChild(b);
+  });
+}
+
+function answer(chosen,correct,instIdx){
+  const btns=document.querySelectorAll('.opt-btn');
+  btns.forEach(b=>b.disabled=true);
+  btns[correct].classList.add('correct');
+  const fb=document.getElementById('feedback');
+  if(chosen===correct){
+    score+=100;document.getElementById('score-display').textContent=score;
+    fb.textContent='✅ Correct! +100 pts';fb.className='feedback correct';
+    if(!unlocked[instIdx]){
+      unlocked[instIdx]=true;
+      setTimeout(()=>{
+        const el=document.getElementById('inst-game-instruments-'+instIdx);
+        if(el){el.classList.add('unlocked');el.textContent=INSTRUMENTS[instIdx].icon;}
+        const banner=document.getElementById('unlock-banner');
+        document.getElementById('unlock-icon').textContent=INSTRUMENTS[instIdx].icon;
+        document.getElementById('unlock-name').textContent=INSTRUMENTS[instIdx].name+' Unlocked!';
+        banner.classList.add('show');
+      },300);
+    }
+  } else {
+    btns[chosen].classList.add('wrong');lives--;renderLives();
+    fb.textContent=`❌ Not quite! The answer was: ${questions[qIndex].opts[correct]}`;
+    fb.className='feedback wrong';
+    if(lives<=0){setTimeout(endGame,1200);return;}
+  }
+  document.getElementById('next-btn').style.display='inline-block';
+  qIndex++;
+}
+
+function nextQuestion(){loadQuestion();}
+
+function endGame(){
+  showScreen('screen-end');
+  document.getElementById('final-score').textContent=score;
+  const pct=score/(ALL_QUESTIONS.length*100);
+  let icon,msg;
+  if(pct===1){icon='🏆';msg="Perfect score! You're a true YMU champion — the whole band is together!";spawnConfetti();}
+  else if(pct>=.75){icon='🎶';msg="Great job! You really know your YMU. Keep spreading the music!";}
+  else if(pct>=.5){icon='🎵';msg="Nice effort! Learn more about YMU and challenge yourself again.";}
+  else{icon='🎤';msg="Keep exploring YMU's story — there's so much to discover at ymu.org!";}
+  document.getElementById('end-icon').textContent=icon;
+  document.getElementById('final-msg').textContent=msg;
+  const stars=document.getElementById('stars-row');stars.innerHTML='';
+  const sc=pct===1?3:pct>=.66?2:1;
+  for(let i=0;i<3;i++){
+    const s=document.createElement('span');
+    s.className='star'+(i<sc?' lit':'');s.textContent='⭐';stars.appendChild(s);
+  }
+  renderInstruments('end-instruments');
+}
+
+function spawnConfetti(){
+  const colors=['#3D4EE8','#6B7BFF','#fff','#a0aaff','#2233cc'];
+  for(let i=0;i<80;i++){
+    const c=document.createElement('div');c.className='confetti-piece';
+    c.style.cssText=`left:${Math.random()*100}vw;background:${colors[Math.floor(Math.random()*colors.length)]};animation-duration:${1.5+Math.random()*2}s;animation-delay:${Math.random()*.8}s;width:${6+Math.random()*6}px;height:${6+Math.random()*6}px;border-radius:${Math.random()>.5?'50%':'2px'};`;
+    document.body.appendChild(c);setTimeout(()=>c.remove(),4000);
+  }
+}
+</script>
+</body>
+</html>
